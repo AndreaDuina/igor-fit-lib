@@ -1,6 +1,6 @@
 // To use this library create a wave of parameters with the following form:
 //	FWHM	// Gaussian FWHM
-//	t0		// Offset on t, where the heaviside funtion steps
+//	t0		// Offset on t // where the heaviside funtion steps
 //	Other parameters required by the fit function
 
 // EXAMPLE of parameter wave for the fit function Rise1expFall2exp:
@@ -23,7 +23,7 @@
 
 #pragma rtGlobals=1		// Use modern global access method
 
-
+// ***** GAUSSIAN ***** //
 /// <summary>Gaussian function g(t) with peak normalized to 1.
 /// "param" is the fwhm, "t" the input wave on which the function is calculated</summary>
 Function Gaussian(param,t)
@@ -42,6 +42,7 @@ End
 
 
 
+// ***** 1 RISE - 2 FALL ***** //
 /// <summary>Function f(t) = 1 rising exp * sum of 2 falling exp.
 /// "param" is the wave of parameters, "t" the input wave on which the function is calculated</summary>
 Function Rise1expFall2exp(param,t)
@@ -67,6 +68,7 @@ End
 
 
 
+// ***** 1 RISE - 1 FALL ***** //
 /// <summary>Function f(t) = 1 rising exp * 1 falling exp.
 /// "param" is the wave of parameters, "t" the input wave on which the function is calculated</summary>
 Function Rise1expFall1exp(param,t)
@@ -81,10 +83,8 @@ Function Rise1expFall1exp(param,t)
 	variable y0_f = param[5];		// Fall offset y
 	variable A = param[6];			// Constant the whole expression
 	
-	// f(t) =        (______rise exp 1_____) *          ( _______fall exp 1_______ )    
-	//variable f = A * (1-exp(-(t-t0)/tau_r1)) * ( y0_f + ( I_f1*exp(-(t-t0)/tau_f1) ) );
-	
-	variable f = A * (1-exp(-(t-t0)/tau_r1)) * ( y0_f + I_f1*exp(-(t-t0)/tau_f1)  );
+	// f(t) =        (______rise exp 1_____) *         ( ______fall exp 1_____ )    
+	variable f = A * (1-exp(-(t-t0)/tau_r1)) * ( y0_f + I_f1*exp(-(t-t0)/tau_f1) );
 
 	return (f);
 End
@@ -92,6 +92,7 @@ End
 
 
 
+// ***** 2 RISE - 1 FALL ***** //
 /// <summary>Function f(t) = sum of 2 rising exp * 1 falling exp.
 /// "param" is the wave of parameters, "t" the input wave on which the function is calculated</summary>
 Function Rise2expFall1exp(param,t)
@@ -109,7 +110,7 @@ Function Rise2expFall1exp(param,t)
 	variable y0_f = param[8];		// Fall offset y
 	variable A = param[9];			// Constant the whole expression	
 	
-	// f(t) =        (______rise exp 1_____) *          ( _______fall exp 1______  + _______fall exp 2______  )    
+	// f(t) =          ( ________rise exp 1_______  +  _________rise exp 2_______ )  *         ( ______fall exp 1_____ )
 	variable f = A * ( (1-I_r1*exp(-(t-t0)/tau_r1)) +  (1-I_r2*exp(-(t-t0)/tau_r2))) * ( y0_f + I_f1*exp(-(t-t0)/tau_f1)  );
 
 	return (f);
@@ -118,16 +119,42 @@ End
 
 
 
-
-/// <summary>Convolutes the function f(t) with g(t).
+// ***** QUICK CONVOLUTION WITH HEAVISIDE ***** //
+/// <summary>Convolutes the function g(t) with f(t) and H(t-t0).
 /// Computes the integral of f(t')g(t-t')H(t-t0)dt', where H(t) is the Heaviside function.
-/// "param" is the vector with all the parameters of both functions.
+/// "param" is the vector with all the parameters of both the functions f(t) and g(t).
 /// "t" the input wave on which the functions f(t) and g(t) are defined.</summary>
-Function QuickConv(param, t)//, interval_start, interval_end, step)
+Function QuickConvH(param, t)
 	wave param;		// Parameter vector
 	variable t;		// Time vector
 
-	variable t0 = param[1];			// Offset on t
+	variable t0 = param[1];			// The Heaviside function is centered in t0
+
+	variable interval_end = 3600;	// Convolution interval end
+	variable step = 2;				// Numeric integration step
+	variable y; 		// Convolution variable
+	variable conv = 0;	// Final result
+
+	// Thanks to H(t-t0) we can start integrating from t0
+	for(y = t0; y < interval_end; y += step)
+		conv += Gaussian(param,t-y) * Rise1expFall2exp(param,y) * step;
+	endfor
+
+	return (conv);
+End
+
+
+
+// ***** QUICK CONVOLUTION ***** //
+/// <summary>Convolutes the function g(t) with f(t).
+/// Computes the integral of f(t')g(t-t')dt'.
+/// "param" is the vector with all the parameters of both functions.
+/// "t" the input wave on which the functions f(t) and g(t) are defined.</summary>
+Function QuickConv(param, t)
+	wave param;		// Parameter vector
+	variable t;		// Time vector
+
+	variable t0 = param[1];			// The Heaviside function is centered in t0
 
 	variable interval_start = -400;	// Convolution interval start
 	variable interval_end = 3600;	// Convolution interval end
@@ -135,10 +162,8 @@ Function QuickConv(param, t)//, interval_start, interval_end, step)
 	variable y; 		// Convolution variable
 	variable conv = 0;	// Final result
 
+	// Thanks to H(t-t0) we can start integrating from t0
 	for(y = interval_start; y < interval_end; y += step)
-		if (y < t0)		// This if statement is a Heaviside function
-			continue;
-		endif
 		conv += Gaussian(param,t-y) * Rise1expFall2exp(param,y) * step;
 	endfor
 
@@ -148,6 +173,7 @@ End
 
 
 
+// ***** IGOR CONVOLUTION ***** //
 /// <summary>Convolutes the function f(t) with the g(t) with IGOR built in function.
 /// Computes the integral of f(t')g(t-t')dt'.
 /// "param" is the vector with all the parameters of both functions</summary>
