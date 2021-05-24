@@ -92,6 +92,8 @@ End
 
 
 
+
+
 // ***** 2 RISE - 1 FALL ***** //
 /// <summary>Function f(t) = sum of 2 rising exp * 1 falling exp.
 /// "param" is the wave of parameters, "t" the input wave on which the function is calculated</summary>
@@ -119,8 +121,35 @@ End
 
 
 
+// ***** 3 FALL ***** //
+/// <summary>Function f(t) = sum of 3 falling exp.
+/// "param" is the wave of parameters, "t" the input wave on which the function is calculated</summary>
+Function Fall3exp(param,t)
+	wave param;		// Parameter vector
+	variable t;		// Time vector
+
+	// Parameters of f(t)
+	variable t0 = param[1];			// Offset t
+	variable I_f1 = abs(param[2]);		// Fall intensity 1
+	variable tau_f1 = abs(param[3]);	// Fall time constant 1
+	variable I_f2 = abs(param[4]);		// Fall intensity 2
+	variable tau_f2 = abs(param[5]);	// Fall time constant 2
+	variable I_f3 = abs(param[6]);		// Fall intensity 2
+	variable tau_f3 = abs(param[7]);	// Fall time constant 2
+	variable y0_f = param[8];		// Fall offset y	
+	
+	// f(t) =                (_____fall exp 1_____) +( ____fall exp 2_____) + (_____fall exp 3____)    
+	variable f = y0_f + I_f1*exp(-(t-t0)/tau_f1) + I_f2*exp(-(t-t0)/tau_f2) + I_f3*exp(-(t-t0)/tau_f3) ;
+
+	return (f);
+End
+
+
+
+
+
 // ***** QUICK CONVOLUTION WITH HEAVISIDE ***** //
-/// <summary>Convolutes the function g(t) with f(t) and H(t-t0).
+/// <summary>Convolves the function g(t) with f(t) and H(t-t0).
 /// Computes the integral of f(t')g(t-t')H(t-t0)dt', where H(t) is the Heaviside function.
 /// "param" is the vector with all the parameters of both the functions f(t) and g(t).
 /// "t" the input wave on which the functions f(t) and g(t) are defined.</summary>
@@ -146,7 +175,7 @@ End
 
 
 // ***** QUICK CONVOLUTION ***** //
-/// <summary>Convolutes the function g(t) with f(t).
+/// <summary>Convolves the function g(t) with f(t).
 /// Computes the integral of f(t')g(t-t')dt'.
 /// "param" is the vector with all the parameters of both functions.
 /// "t" the input wave on which the functions f(t) and g(t) are defined.</summary>
@@ -164,7 +193,7 @@ Function QuickConv(param, t)
 
 	// Thanks to H(t-t0) we can start integrating from t0
 	for(y = interval_start; y < interval_end; y += step)
-		conv += Gaussian(param,t-y) * Rise1expFall2exp(param,y) * step;
+		conv += Gaussian(param,t-y) * Rise1expFall1exp(param,y) * step;	// WITHOUT HEAVISIDE
 	endfor
 
 	return (conv);
@@ -174,7 +203,7 @@ End
 
 
 // ***** IGOR CONVOLUTION ***** //
-/// <summary>Convolutes the function f(t) with the g(t) with IGOR built in function.
+/// <summary>Convolves the function f(t) with the g(t) with IGOR built in function.
 /// Computes the integral of f(t')g(t-t')dt'.
 /// "param" is the vector with all the parameters of both functions</summary>
 Function QuickIgorConv(param, t)
